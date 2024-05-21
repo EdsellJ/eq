@@ -6,11 +6,13 @@ class FilmSensor:
     def __init__(self, num_sensors):
         self.num_sensors = num_sensors
         self.channels = list(range(num_sensors))
-        self.sensors = [MCP3008(channel=channel) for channel in self.channels]
+        self.sensors = [MCP3208(channel=channel) for channel in self.channels]
         self.time_limit = 0.18
         self.threshold = 0.06
         self.when_triggered = None
         self.threads = []
+        self.captured_values = []  # List to store captured values
+        self.lock = threading.Lock()  # Lock to prevent multiple threads from accessing the list simultaneously
 
         #for capture
         self.consecutive_decreases_allowed = 3
@@ -46,8 +48,15 @@ class FilmSensor:
 
             previous_value = value  # Update previous value for next iteration
 
-        print(f"Value: {largest_value}")
-        
+        with self.lock: #lock to make accesssing the list thread safe
+            self.captured_values.append({'sensor': channel, 'value': largest_value})  # Append the largest value to the list
+
+        #print capture_values to console with formatting
+        captured_values_str = ', '.join([f"{item['sensor']}: {item['value']:.2f}" for item in self.captured_values])
+        print(f"Captured values: {captured_values_str}")
+
+
+                
         return largest_value
 
     def start(self):
