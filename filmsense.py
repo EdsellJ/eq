@@ -1,4 +1,4 @@
-from gpiozero import MCP3008
+from gpiozero import MCP3208
 import time
 import threading
 class FilmSensor:
