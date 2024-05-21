@@ -76,10 +76,10 @@ class FilmSensor:
         while not self.shutdown_event.is_set():
             value = sensor.value
             if value > self.threshold:
-                print(f"Threshold crossed on channel {sensor.channel} with value: {value}")
                 self.capture(index, value)  # Call capture directly                # Wait until the value drops below the threshold to reset
                 while not self.shutdown_event.is_set() and sensor.value > self.threshold:
                     time.sleep(0.02)
+            time.sleep(0.01) #small delay to reduce cpu usage
 
 def on_force_detected(channel, value):
     print(f"Force detected on channel {channel} with value: {value}")
