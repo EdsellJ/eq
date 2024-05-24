@@ -36,10 +36,17 @@ class LEDRingDriver:
             self.strip.setPixelColor(start_index + i, color)
         self.strip.show()
 
-    def clear(self):
+    def clear_all(self):
         """Clear all LEDs"""
         for i in range(self.strip.numPixels()):
             self.strip.setPixelColor(i, Color(0, 0, 0))
+        self.strip.show()
+
+    def clear(self, ring_index):
+        """Clear the light of a specific index"""
+        start_index = self.rings[ring_index]
+        for i in range(self.leds_per_ring):
+            self.strip.setPixelColor(start_index + i, Color(0, 0, 0))
         self.strip.show()
 
     def set_all(self, color):
