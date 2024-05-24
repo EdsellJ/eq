@@ -53,7 +53,7 @@ def add_to_sequence():
     for i in sequence:
         led_driver.set_ring_color(i, Color(0, 40, 0))
         sleep(0.3)
-        led_driver.clear()
+        led_driver.clear(i)
         sleep(0.3)
 
 def run_game():
@@ -72,11 +72,11 @@ def run_game():
             sleep(1)
     except KeyboardInterrupt:
         sensor_driver.stop()
-        led_driver.clear()
+        led_driver.clear_all()
         exit()
 
 # Start the game
 run_game()
 sensor_driver.stop()
-led_driver.clear()
+led_driver.clear_all()
 exit()
