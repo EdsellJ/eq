@@ -1,4 +1,13 @@
 #Combination Speed
+'''
+The Equalizer illuminates a sequence of LED target locations Green. The user is
+then required to accurately repeat the sequence. As the user succeeds, one
+additional target location is added to the sequence, thus the sequence becomes
+longer and more complex. Once the user fails to repeat the sequence, or the time
+expires, the training is over. The LED target location will illuminate Green, once
+the user has struck the target, the LED will no longer illuminate. When the
+sequence restarts, the LED will again illuminate Green.
+'''
 from common_imports import *
 import common_imports
 led_driver, sensor_driver = common_imports.setup_drivers()
