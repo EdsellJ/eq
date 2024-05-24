@@ -1,0 +1,6 @@
+{
+    "num_rings": 3,
+    "leds_per_ring": 8,
+    "num_sensors": 3
+
+}

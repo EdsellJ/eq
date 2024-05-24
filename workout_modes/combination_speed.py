@@ -1,0 +1,73 @@
+#Combination Speed
+from common_imports import *
+import common_imports
+led_driver, sensor_driver = common_imports.setup_drivers()
+
+# Arrays for sequence
+#Define arrays for remembering the sequence
+sequence = []
+user_sequence = []
+# Threading variables
+userStatus = True
+list_lock = threading.Lock()
+exit_event = threading.Event()
+
+# Function to check if the user sequence matches the sequence
+def sequence_match():
+    global sequence
+    global user_sequence
+    global userStatus
+    user_sequence = [item['sensor'] for item in sensor_driver.captured_values]
+    
+    print(user_sequence)
+    #if not a perfect match, check for match up to current length of user sequence
+    if len(user_sequence) == len(sequence) and all(user_sequence[i] == sequence[i] for i in range(len(user_sequence))):
+        exit_event.set()
+        return True
+    elif len(user_sequence) > len(sequence) or not all (user_sequence[i] == sequence[i] for i in range(len(user_sequence))):
+        print("sequence mismatch. try again.")
+        sensor_driver.captured_values.clear() #reset user sequence if wrong
+        userStatus = False
+        exit_event.set()
+        return False
+    else:
+        return False
+
+#Function to add a random number to the sequence
+def add_to_sequence():
+    global sequence
+    with list_lock: #ensure only one thread can access the list at a time
+        sequence.append(random.randint(0, led_driver.num_rings-1))
+    print("Sequence: ", sequence)
+
+    #blink lights in sequence
+    for i in sequence:
+        led_driver.set_ring_color(i, Color(0, 40, 0))
+        sleep(0.3)
+        led_driver.clear()
+        sleep(0.3)
+
+def run_game():
+    sensor_driver.start()
+
+    try:
+        while True:
+            if not userStatus:
+                break
+            add_to_sequence()
+            sleep(1)
+            user_sequence.clear()
+            while not sequence_match() and userStatus:
+                sleep(1)
+            sensor_driver.captured_values.clear()
+            sleep(1)
+    except KeyboardInterrupt:
+        sensor_driver.stop()
+        led_driver.clear()
+        exit()
+
+# Start the game
+run_game()
+sensor_driver.stop()
+led_driver.clear()
+exit()

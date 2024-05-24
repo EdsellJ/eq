@@ -1,23 +1,16 @@
 #Speed game
-from gpiozero import Button, LED, MCP3008, TonalBuzzer
-from gpiozero.tones import Tone
 from time import sleep
 from signal import pause
 import random
 import threading
 from ringctl import LEDRingDriver
+from filmsense import FilmSensor
 from rpi_ws281x import Color
 # Set up the button, LED, and buzzer
 buzz = TonalBuzzer(25)
 num_rings = 3
 leds_per_ring = 8
 led_driver = LEDRingDriver(num_rings, leds_per_ring)
-'''
-button1 = Button(21)
-button2 = Button(20)
-button3 = Button(16)
-button4 = Button(12)
-'''
 
 # Set up the potentiometer
 pot = MCP3008(channel=7)
@@ -54,8 +47,6 @@ def add_to_sequence():
         sleep(0.3)
 
 def poll_buttons():
-    for i, button in enumerate(buttons):
-        button.when_pressed = lambda i=i: on_button_press(i)
     
     exit_event.wait()  # Wait for the event to be set This will block here waiting for button events
 
@@ -85,6 +76,10 @@ def play_tone(tone):
 
 # Simulation function that runs the game
 def run_game():
+    num_sensors = 3 # Example: 3 sensors connected to channels 0, 1, 2
+    handler = FilmSensor(num_sensors)
+    handler.start()
+
     try:
         #play the starting tone
         buzz.play(Tone("C4"))
@@ -99,12 +94,9 @@ def run_game():
         sleep(1)
         while userStatus:
             add_to_sequence()
-            '''
-            poll_buttons_thread = threading.Thread(target=poll_buttons)
-            poll_buttons_thread.start()
-            poll_buttons_thread.join()  # Wait here until the thread finishes (which it may not without external triggers)
+
             exit_event.clear()
-            '''
+
             sleep(1)
 
         #play the losing tone
@@ -118,6 +110,7 @@ def run_game():
 
     except KeyboardInterrupt:
         led_driver.clear()
+        handler.stop()
         buzz.stop()
 
 # Run the game
