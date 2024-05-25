@@ -12,46 +12,128 @@ location as desired.
 '''
 from common_imports import *
 import common_imports
+from queue import Queue
 led_driver, sensor_driver = common_imports.setup_drivers()
 from gpiozero import Button, TonalBuzzer
 from gpiozero.tones import Tone
 from drivers.lib import color_change, await_hit, get_hit
 
-def blink_all(stop_event):
+#define button 1, 2 and buzzer
+button1 = Button(5)
+button2 = Button(13)
+buzz = TonalBuzzer(24)
+
+#function to beep buzzer for 1 second
+def beep(durration = .075):
+    buzz.play(Tone("D5"))
+    sleep(durration)
+    buzz.stop()
+
+def blink_all(stop_event, sensor = None, color = Color(0, 40, 0)):
     while not stop_event.is_set():
-        #turn all sensors green
-        led_driver.set_all(Color(0, 40, 0))
+        if sensor == None:
+            #turn all sensors green
+            led_driver.set_all(color)
+        else:
+            #Blink single sensor other color
+            led_driver.set_ring_color(sensor, color)    
         sleep(.4)
         led_driver.clear_all()
         if stop_event.is_set():
             break
         sleep(.4)
 
-def specific_target():
-    button1 = Button(5)
-    button2 = Button(13)
-    while button1.wait_for_press():
-        sleep(.01)
-    
-    led_driver.set_all(Color(0, 40, 0))
-    
+def color_picker(color_stop_event, sensor, color_queue):
+    #cycle through colors
+    colors = [Color(40, 40, 0), Color(40, 0, 0), Color(40, 0, 40)]
+    color = colors[0]
+    while not color_stop_event.is_set():
+        blink_stop_event = threading.Event()
+        #start a thread of blink all that I can join later
+        with threading.Lock():
+            thread = threading.Thread(target=blink_all, args=(blink_stop_event, sensor, color))
+            #start the thread as a daemon
+            thread.daemon = True
+            thread.start()
+        #wait for button 2 to be pressed
+        while not button2.is_pressed and not color_stop_event.is_set():
+            sleep(0.01)
+        #beep on button press in a thread
+        threading.Thread(target=beep).start()
+        blink_stop_event.set()
+        thread.join()
+        #if on last color, reset
+        if color == colors[-1]:
+            color = colors[0]
+        else:
+            color = colors[colors.index(color)+1]
+        if color_stop_event.is_set():
+            break
+    color_queue.put(color)  # Put the color into the queue
 
+
+def getColor(sensor):
+    color_queue = Queue()
+    color_stop_event = threading.Event()
+    color_thread = threading.Thread(target=color_picker, args=(color_stop_event, sensor, color_queue))
+    color_thread.daemon = True
+    color_thread.start()
+    while await_hit(sensor_driver) != sensor:
+        sleep(0.02)
+    color_stop_event.set()
+    color_thread.join()
+    return color_queue.get()  # Get the color from the queue
+
+def startup():
+    stop_event = threading.Event()
+    #start a thread of blink all that I can join later
+    with threading.Lock():
+        thread = threading.Thread(target=blink_all, args=(stop_event,))
+        #start the thread as a daemon
+        thread.daemon = True
+        thread.start()
+    
+    #wait for the user to hit a sensor
+    training_sensor = await_hit(sensor_driver)
+    #beep in a thread
+    threading.Thread(target=beep).start()
+    #signal the blink all thread to stop
+    stop_event.set()
+    #wait for the blink all thread to finish
+    thread.join()
+    return training_sensor
+
+def training_loop(training_exit_event, sensor, color):
+    #set the color of the training sensor
+    led_driver.set_ring_color(sensor, color)
+    #cycle between yellow, red, and purple as button 2 is pressed; hit sensor to confirm
+    while True:
+        if await_hit(sensor_driver) == sensor:
+            break
+        sleep(0.02)
+    color = getColor(sensor)  # Get the color for the sensor
+    return color
+
+def specific_target():
+    #beep
+    beep()
+    #set the training sensor to the sensor that was hit
+    training_sensor = startup()
+    color = getColor(training_sensor) # Get the color for the training sensor
+    #set the color of the training sensor
+   
+    #cycle between yellow, red, and purple as button 2 is pressed; hit sensor to confirm
+    
 
 try:
-    specific_target()
-    sensor_driver.stop()
-    led_driver.clear_all()
-    exit()
+    sensor_driver.start()
+    while True:
+        specific_target()
+        led_driver.clear_all()
 
 except KeyboardInterrupt:
     sensor_driver.stop()
     led_driver.clear_all()
     exit()
 
-# Define buzzer in pin gpio pin 24
-buzzer = TonalBuzzer(24)
 
-#play buzzer
-buzzer.play(Tone("A4"))
-sleep(1)
-buzzer.stop()
