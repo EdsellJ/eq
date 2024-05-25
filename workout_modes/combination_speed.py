@@ -11,7 +11,7 @@ sequence restarts, the LED will again illuminate Green.
 from common_imports import *
 import common_imports
 led_driver, sensor_driver = common_imports.setup_drivers()
-
+from drivers.lib import color_change, get_hit, await_hit
 # Arrays for sequence
 #Define arrays for remembering the sequence
 sequence = []
@@ -31,13 +31,11 @@ def sequence_match():
     print(user_sequence)
     #if not a perfect match, check for match up to current length of user sequence
     if len(user_sequence) == len(sequence) and all(user_sequence[i] == sequence[i] for i in range(len(user_sequence))):
-        exit_event.set()
         return True
     elif len(user_sequence) > len(sequence) or not all (user_sequence[i] == sequence[i] for i in range(len(user_sequence))):
         print("sequence mismatch. try again.")
         sensor_driver.captured_values.clear() #reset user sequence if wrong
         userStatus = False
-        exit_event.set()
         return False
     else:
         return False
@@ -64,10 +62,14 @@ def run_game():
             if not userStatus:
                 break
             add_to_sequence()
-            sleep(1)
             user_sequence.clear()
             while not sequence_match() and userStatus:
-                sleep(1)
+                await_hit(sensor_driver)
+                sensor, value = get_hit(sensor_driver)
+                #change the color of the sensor in a thread
+                with threading.Lock():
+                    threading.Thread(target=color_change, args=(led_driver, sensor, value)).start()
+
             sensor_driver.captured_values.clear()
             sleep(1)
     except KeyboardInterrupt:

@@ -86,7 +86,7 @@ def on_force_detected(channel, value):
 
 # Example usage
 if __name__ == "__main__":
-    num_sensors = 3 # Example: 3 sensors connected to channels 0, 1, 2
+    num_sensors = 8 # Example: 3 sensors connected to channels 0, 1, 2
     handler = FilmSensor(num_sensors)
     handler.start()
 

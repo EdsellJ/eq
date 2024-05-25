@@ -5,7 +5,7 @@ user to turn all LED sensors Red as quickly as possible. This is a timed event.
 '''
 from common_imports import *
 import common_imports
-from color_change import color_change
+from drivers.lib import color_change
 led_driver, sensor_driver = common_imports.setup_drivers()
 
 #create an array of 0..the number of sensors
