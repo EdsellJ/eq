@@ -15,13 +15,21 @@ def color_change(led_drive, index, value, delay=0.5):
     sleep(delay)
     led_drive.clear(index)
 
-def await_hit(sensor_drive):
+def await_hit(sensor_drive, exit_event=None):
     capture_len = len(sensor_drive.captured_values) #get the length of the captured values
-    while True:
-        updated_len = len(sensor_drive.captured_values) #get an updated length of the captured values
-        if updated_len > capture_len:
-            return sensor_drive.captured_values[updated_len-1]['sensor']
-        sleep(0.01)
+    if exit_event is None:
+        while True:
+            updated_len = len(sensor_drive.captured_values) #get an updated length of the captured values
+            if updated_len > capture_len:
+                return sensor_drive.captured_values[updated_len-1]['sensor']
+            sleep(0.01)
+    else:
+        while not exit_event.is_set():
+            updated_len = len(sensor_drive.captured_values)
+            if updated_len > capture_len:
+                return sensor_drive.captured_values[updated_len-1]['sensor']
+            sleep(0.01)
+        return None
 
 def get_hit(sensor_drive):
     capture_len = len(sensor_drive.captured_values) #get the length of the captured values
