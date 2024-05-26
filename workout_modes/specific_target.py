@@ -24,14 +24,38 @@ button2 = Button(13)
 buzz = TonalBuzzer(24)
 
 #function to beep buzzer for 1 second
-def beep(durration = .075):
+def beep(duration = .075):
     buzz.play(Tone("D5"))
-    sleep(durration)
+    sleep(duration)
+    buzz.stop()
+
+def positive_tune():
+    buzz.play(Tone("D5"))
+    sleep(.125)
+    buzz.stop()
+    buzz.play(Tone("E5"))
+    sleep(.125)
+    buzz.play(Tone("F5"))
+    sleep(.125)
+    buzz.play(Tone("G5"))
+    sleep(.25)
+    buzz.stop()
+    
+def negative_tune():
+    buzz.play(Tone("G5"))
+    sleep(.125)
+    buzz.stop()
+    buzz.play(Tone("F5"))
+    sleep(.125)
+    buzz.play(Tone("E5"))
+    sleep(.125)
+    buzz.play(Tone("D5"))
+    sleep(.25)
     buzz.stop()
 
 def blink_all(stop_event, sensor = None, color = Color(0, 40, 0)):
     while not stop_event.is_set():
-        if sensor == None:
+        if sensor is None:
             #turn all sensors green
             led_driver.set_all(color)
         else:
@@ -42,6 +66,11 @@ def blink_all(stop_event, sensor = None, color = Color(0, 40, 0)):
         if stop_event.is_set():
             break
         sleep(.4)
+
+def flash_green(sensor, origional_color):
+    led_driver.set_ring_color(sensor, Color(0, 40, 0))
+    sleep(.4)
+    led_driver.set_ring_color(sensor, origional_color)
 
 def color_picker(color_stop_event, sensor, color_queue):
     #cycle through colors
@@ -62,13 +91,15 @@ def color_picker(color_stop_event, sensor, color_queue):
         threading.Thread(target=beep).start()
         blink_stop_event.set()
         thread.join()
+        #if exit set
+        if color_stop_event.is_set():
+            break
         #if on last color, reset
         if color == colors[-1]:
             color = colors[0]
         else:
             color = colors[colors.index(color)+1]
-        if color_stop_event.is_set():
-            break
+        
     color_queue.put(color)  # Put the color into the queue
 
 
@@ -104,15 +135,33 @@ def startup():
     return training_sensor
 
 def training_loop(training_exit_event, sensor, color):
+    #start the sensor driver
+    sensor_driver.start(sensor)
     #set the color of the training sensor
     led_driver.set_ring_color(sensor, color)
-    #cycle between yellow, red, and purple as button 2 is pressed; hit sensor to confirm
-    while True:
-        if await_hit(sensor_driver) == sensor:
+    #determine force threshold for color
+    if color == Color(40, 40, 0):
+        force_threshold = 0.2
+    elif color == Color(40, 0, 0):
+        force_threshold = 0.4
+    else:
+        force_threshold = 0.5
+    #wait for the sensor to be hit
+    while not training_exit_event.is_set():
+        await_hit(sensor_driver, training_exit_event)
+        if training_exit_event.is_set():
             break
+        #check if force matches correct threshold for color
+        sense, force = get_hit(sensor_driver)
+        if force >= force_threshold:
+            #play positive tune in a thread
+            threading.Thread(target=positive_tune).start()
+            #flash green in a thread
+            threading.Thread(target=flash_green, args=(sensor, color)).start()
+        else:
+            #play negative tune in a thread
+            threading.Thread(target=negative_tune).start()
         sleep(0.02)
-    color = getColor(sensor)  # Get the color for the sensor
-    return color
 
 def specific_target():
     #beep
@@ -121,13 +170,26 @@ def specific_target():
     training_sensor = startup()
     color = getColor(training_sensor) # Get the color for the training sensor
     #set the color of the training sensor
-   
-    #cycle between yellow, red, and purple as button 2 is pressed; hit sensor to confirm
-    
+    sensor_driver.stop()
+    #wait for all threads to stop
+    sleep(0.5)
+    exit_event = threading.Event()
+    #start training loop in a thread
+    thread = threading.Thread(target=training_loop, args=(exit_event, training_sensor, color))
+    thread.daemon = True
+    thread.start()
+    #if button 1 is pressed stop the training loop
+    while not button1.is_pressed:
+        sleep(0.02)
+    exit_event.set()
+    thread.join()    
+    led_driver.clear_all()
+    sensor_driver.stop()
+    sleep(.3) #wait for sensor driver to stop
 
 try:
-    sensor_driver.start()
     while True:
+        sensor_driver.start()
         specific_target()
         led_driver.clear_all()
 
