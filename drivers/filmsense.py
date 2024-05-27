@@ -55,24 +55,35 @@ class FilmSensor:
         captured_values_str = ', '.join([f"{item['sensor']}: {item['value']:.2f}" for item in self.captured_values])
         print(f"Captured values: {captured_values_str}")
 
-
                 
         return largest_value
 
-    def start(self):
-        for i, sensor in enumerate(self.sensors):
-            thread = threading.Thread(target=self._monitor_sensor, args=(sensor, i))
+    def start(self, index = None):
+        self.shutdown_event.clear()  # Clear the shutdown event
+        if index is None:
+            for i, sensor in enumerate(self.sensors):
+                thread = threading.Thread(target=self._monitor_sensor, args=(sensor, i))
+                thread.start()
+                self.threads.append(thread)
+        #else if index is between 0 and the number of sensors
+        elif 0 <= index < self.num_sensors:
+            thread = threading.Thread(target=self._monitor_sensor, args=(self.sensors[index], index))
             thread.start()
             self.threads.append(thread)
-        self.shutdown_event.clear()  # Clear the shutdown event
+        #else send error message and shutdown
+        else:
+            raise ValueError("Invalid sensor index provided")
+
     
     def stop(self):
         self.shutdown_event.set()  # Signal all threads to shutdown
         for thread in self.threads:
             thread.join()
+        #clar threads list
+        self.threads.clear()   
 
     def _monitor_sensor(self, sensor, index):
-        print(f"Monitoring force sensor on channel {sensor.channel}...")
+        print(f"Monitoring force sensor on channel {index}...")
         while not self.shutdown_event.is_set():
             value = sensor.value
             if value > self.threshold:
