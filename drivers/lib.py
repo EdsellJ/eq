@@ -6,9 +6,9 @@ from time import sleep
 def color_change(led_drive, index, value, delay=0.5):
     #if the last value in captured_values is 0, turn the first led red
 
-    if value <.5:
+    if value <.3:
         led_drive.set_ring_color(index, Color(40, 40, 0))
-    elif value <.8:
+    elif .3 < value <.45:
         led_drive.set_ring_color(index, Color(40, 0, 0))
     else:
         led_drive.set_ring_color(index, Color(40, 0, 40))
